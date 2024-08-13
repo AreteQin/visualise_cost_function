@@ -27,13 +27,12 @@ include_directories(
 )
 
 # enable drawing plot
-add_subdirectory(third_party/matplotlib-cpp)
-include_directories(${PROJECT_SOURCE_DIR}/third_party/matplotlib-cpp)
+add_subdirectory(third_party/matplotplusplus)
 
 add_executable(test test.cpp)
 #target_include_directories(test PUBLIC ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
 target_link_libraries(test
-        matplotlib_cpp
+        matplot
         ${OpenCV_LIBS}
         ${Pangolin_LIBRARIES}
         g2o_core g2o_stuff g2o_types_sba g2o_solver_csparse g2o_csparse_extension

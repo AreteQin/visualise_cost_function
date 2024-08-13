@@ -12,10 +12,8 @@
 #include <opencv2/core/core.hpp>
 #include <cmath>
 #include <chrono>
-#include <matplotlibcpp.h>
-
+#include <matplot/matplot.h>
 using namespace std;
-namespace plt = matplotlibcpp;
 
 // 曲线模型的顶点，模板参数：优化变量维度和数据类型
 class CurveFittingVertex : public g2o::BaseVertex<2, Eigen::Vector2d> {
@@ -88,10 +86,7 @@ int main(int argc, char **argv) {
     }
 
     // Plot given data and real plot
-    plt::plot(x_real, y_real);
-    plt::plot(x_data, y_data);
-    plt::title("Sample figure");
-    plt::show();
+
 
     // visualize cost function
     std::vector<std::vector<double>> x, y, z;
@@ -111,8 +106,8 @@ int main(int argc, char **argv) {
         y.push_back(y_row);
         z.push_back(z_row);
     }
-    plt::plot_surface(x, y, z);
-    plt::show();
+    // plt::plot_surface(x, y, z);
+    // plt::show();
 
     // 构建图优化，先设定g2o
     typedef g2o::BlockSolver<g2o::BlockSolverTraits<2, 1>> BlockSolverType;  // 每个误差项优化变量维度为3，误差值维度为1
