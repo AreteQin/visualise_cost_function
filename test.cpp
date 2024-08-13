@@ -56,7 +56,7 @@ public:
         double y = exp(ab[0] * _x * _x + ab[1] * _x);
         _jacobianOplusXi[0] = -_x * _x * y;
         _jacobianOplusXi[1] = -_x * y;
-        _jacobianOplusXi[2] = -y;
+        // _jacobianOplusXi[2] = -y;
         // _jacobianOplusXi[0] = -y*(2*ab[0]*_x+ab[1]);
     }
 
@@ -90,6 +90,7 @@ int main(int argc, char **argv) {
     matplot::hold(matplot::on);
     matplot::plot(x_real, y_real, "-");
     matplot::show();
+    matplot::hold(matplot::off);
 
     // visualize cost function
     std::vector<std::vector<double>> x, y, z;
