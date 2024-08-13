@@ -1,4 +1,5 @@
 #include <iostream>
+#include <memory>
 //#include <g2o/core/g2o_core_api.h>
 #include <g2o/core/base_vertex.h>
 #include <g2o/core/base_unary_edge.h>
@@ -57,6 +58,8 @@ public:
         double y = exp(ab[0] * _x * _x + ab[1] * _x);
         _jacobianOplusXi[0] = -_x * _x * y;
         _jacobianOplusXi[1] = -_x * y;
+        // _jacobianOplusXi[2] = -y;
+        // _jacobianOplusXi[0] = -y*(2*ab[0]*_x+ab[1]);
     }
 
     virtual bool read(istream &in) {}
@@ -117,7 +120,7 @@ int main(int argc, char **argv) {
 
     // 梯度下降方法，可以从GN, LM, DogLeg 中选
     auto solver = new g2o::OptimizationAlgorithmLevenberg(
-            g2o::make_unique<BlockSolverType>(g2o::make_unique<LinearSolverType>()));
+            std::make_unique<BlockSolverType>(std::make_unique<LinearSolverType>()));
     g2o::SparseOptimizer optimizer;     // 图模型
     optimizer.setAlgorithm(solver);   // 设置求解器
     optimizer.setVerbose(true);       // 打开调试输出
