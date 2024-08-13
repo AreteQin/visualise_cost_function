@@ -16,68 +16,84 @@
 using namespace std;
 
 // 曲线模型的顶点，模板参数：优化变量维度和数据类型
-class CurveFittingVertex : public g2o::BaseVertex<2, Eigen::Vector2d> {
+class CurveFittingVertex : public g2o::BaseVertex<2, Eigen::Vector2d>
+{
 public:
-//    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+    //    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
     // 重置
-    virtual void setToOriginImpl() override {
+    virtual void setToOriginImpl() override
+    {
         _estimate << 0, 0;
     }
 
     //  update estimation
-    virtual void oplusImpl(const double *update) override {
+    virtual void oplusImpl(const double* update) override
+    {
         _estimate += Eigen::Vector2d(update);
     }
 
     // 存盘和读盘：留空
-    virtual bool read(istream &in) {}
+    virtual bool read(istream& in)
+    {
+    }
 
-    virtual bool write(ostream &out) const {}
+    virtual bool write(ostream& out) const
+    {
+    }
 };
 
 // 误差模型 模板参数：观测值维度，类型，连接顶点类型
-class CurveFittingEdge : public g2o::BaseUnaryEdge<1, double, CurveFittingVertex> {
+class CurveFittingEdge : public g2o::BaseUnaryEdge<1, double, CurveFittingVertex>
+{
 public:
     // constructor
-    CurveFittingEdge(double x) : BaseUnaryEdge(), _x(x) {}
+    CurveFittingEdge(double x) : BaseUnaryEdge(), _x(x)
+    {
+    }
 
     // 计算曲线模型误差
-    virtual void computeError() override {
-        const CurveFittingVertex *v = static_cast<const CurveFittingVertex *> (_vertices[0]);
+    virtual void computeError() override
+    {
+        const CurveFittingVertex* v = static_cast<const CurveFittingVertex*>(_vertices[0]);
         const Eigen::Vector2d ab = v->estimate(); // get current estimated curve parameters.
-        _error(0, 0) = _measurement - std::exp(ab(0, 0) * _x * _x + ab(1, 0) * _x);
+        _error(0, 0) = _measurement - std::exp(ab(0) * _x * _x + ab(1) * _x);
     }
 
     // 计算雅可比矩阵
-    virtual void linearizeOplus() override {
-        const CurveFittingVertex *v = static_cast<const CurveFittingVertex *> (_vertices[0]);
+    virtual void linearizeOplus() override
+    {
+        const CurveFittingVertex* v = static_cast<const CurveFittingVertex*>(_vertices[0]);
         const Eigen::Vector2d ab = v->estimate();
         double y = exp(ab[0] * _x * _x + ab[1] * _x);
-        _jacobianOplusXi[0] = -_x * _x * y;
-        _jacobianOplusXi[1] = -_x * y;
-        // _jacobianOplusXi[2] = -y;
-        // _jacobianOplusXi[0] = -y*(2*ab[0]*_x+ab[1]);
+        _jacobianOplusXi[0] = -_x * _x * y; // d(error)/d(a)
+        _jacobianOplusXi[1] = -_x * y; // d(error)/d(b)
     }
 
-    virtual bool read(istream &in) {}
+    virtual bool read(istream& in)
+    {
+    }
 
-    virtual bool write(ostream &out) const {}
+    virtual bool write(ostream& out) const
+    {
+    }
 
 public:
-    double _x;  // x 值， y 值为 _measurement
+    double _x; // x 值， y 值为 _measurement
 };
 
-int main(int argc, char **argv) {
-    double ar = 1.0, br = 2.0;        // 真实参数值
-    double ae = 2.0, be = -1.0;      // 估计参数值
-    int N = 100;                                 // 数据点
-    double w_sigma = 1.0;                        // 噪声Sigma值
+int main(int argc, char** argv)
+{
+    double ar = 1.0, br = 2.0; // 真实参数值
+    double ae = 2.0, be = -1.0; // 估计参数值
+    int N = 100; // 数据点
+    double w_sigma = 1.0; // 噪声Sigma值
     double inv_sigma = 1.0 / w_sigma;
-    cv::RNG rng;                                 // OpenCV随机数产生器
+    cv::RNG rng; // OpenCV随机数产生器
 
     std::vector<double> x_real, y_real, x_data, y_data;
-    for (int i = 0; i < N; i++) {
+    for (int i = 0; i < N; i++)
+    {
         double x = i / 100.0;
         x_real.push_back(x);
         y_real.push_back(exp(ar * x * x + br * x));
@@ -93,49 +109,50 @@ int main(int argc, char **argv) {
     matplot::hold(matplot::off);
 
     // visualize cost function
-    std::vector<std::vector<double>> x, y, z;
-    for (double i = 0; i <= 2; i += 0.1) {
-        std::vector<double> x_row, y_row, z_row;
-        for (double j = 1; j <= 3; j += 0.1) {
-            x_row.push_back(i);
-            y_row.push_back(j);
-            double z_row_total = 0;
-            for (double k = 0; k < 1; k += 0.01) {
-                z_row_total = z_row_total + abs(exp(ar * k * k + br * k) - exp(i * k * k + j * k));
+
+    auto [A, B] = matplot::meshgrid(matplot::linspace(ar - 0.1, ar + 0.1, N),
+                                    matplot::linspace(br - 0.1, br + 0.1, N));
+    auto Error_sum = matplot::zeros(N, N);
+    for (int i = 0; i < N; i++)
+    {
+        for (int j = 0; j < N; j++)
+        {
+            double error_sum = 0;
+            for (int k = 0; k < N; k++)
+            {
+                double error = y_data[k] - exp(A[i][j] * x_data[k] * x_data[k] + B[i][j] * x_data[k]);
+                error_sum += error * error * 0.5;
             }
-//            std::cout<<"z: "<<z_row_total<<std::endl;
-            z_row.push_back(z_row_total);
+            Error_sum[i][j] = error_sum;
         }
-        x.push_back(x_row);
-        y.push_back(y_row);
-        z.push_back(z_row);
     }
-    matplot::surf(x, y, z);
+    auto s = matplot::surf(A, B, Error_sum);
     matplot::show();
 
     // 构建图优化，先设定g2o
-    typedef g2o::BlockSolver<g2o::BlockSolverTraits<2, 1>> BlockSolverType;  // 每个误差项优化变量维度为3，误差值维度为1
+    typedef g2o::BlockSolver<g2o::BlockSolverTraits<2, 1>> BlockSolverType; // 每个误差项优化变量维度为3，误差值维度为1
     typedef g2o::LinearSolverDense<BlockSolverType::PoseMatrixType> LinearSolverType; // 线性求解器类型
 
     // 梯度下降方法，可以从GN, LM, DogLeg 中选
     auto solver = new g2o::OptimizationAlgorithmLevenberg(
-            std::make_unique<BlockSolverType>(std::make_unique<LinearSolverType>()));
-    g2o::SparseOptimizer optimizer;     // 图模型
-    optimizer.setAlgorithm(solver);   // 设置求解器
-    optimizer.setVerbose(true);       // 打开调试输出
+        std::make_unique<BlockSolverType>(std::make_unique<LinearSolverType>()));
+    g2o::SparseOptimizer optimizer; // 图模型
+    optimizer.setAlgorithm(solver); // 设置求解器
+    optimizer.setVerbose(true); // 打开调试输出
 
     // 往图中增加顶点
-    CurveFittingVertex *v = new CurveFittingVertex();
+    CurveFittingVertex* v = new CurveFittingVertex();
     v->setEstimate(Eigen::Vector2d(ae, be));
     v->setId(0);
     optimizer.addVertex(v);
 
     // 往图中增加边
-    for (int i = 0; i < N; i++) {
-        CurveFittingEdge *edge = new CurveFittingEdge(x_data[i]);
+    for (int i = 0; i < N; i++)
+    {
+        CurveFittingEdge* edge = new CurveFittingEdge(x_data[i]);
         edge->setId(i);
-        edge->setVertex(0, v);                // 设置连接的顶点
-        edge->setMeasurement(y_data[i]);      // 观测数值
+        edge->setVertex(0, v); // 设置连接的顶点
+        edge->setMeasurement(y_data[i]); // 观测数值
         edge->setInformation(Eigen::Matrix<double, 1, 1>::Identity() * 1 / (w_sigma * w_sigma)); // 信息矩阵：协方差矩阵之逆
         optimizer.addEdge(edge);
     }
