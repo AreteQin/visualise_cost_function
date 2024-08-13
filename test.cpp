@@ -56,7 +56,7 @@ public:
         double y = exp(ab[0] * _x * _x + ab[1] * _x);
         _jacobianOplusXi[0] = -_x * _x * y;
         _jacobianOplusXi[1] = -_x * y;
-        // _jacobianOplusXi[2] = -y;
+        _jacobianOplusXi[2] = -y;
         // _jacobianOplusXi[0] = -y*(2*ab[0]*_x+ab[1]);
     }
 
@@ -86,7 +86,10 @@ int main(int argc, char **argv) {
     }
 
     // Plot given data and real plot
-
+    matplot::plot(x_data, y_data, "o");
+    matplot::hold(matplot::on);
+    matplot::plot(x_real, y_real, "-");
+    matplot::show();
 
     // visualize cost function
     std::vector<std::vector<double>> x, y, z;
@@ -106,8 +109,8 @@ int main(int argc, char **argv) {
         y.push_back(y_row);
         z.push_back(z_row);
     }
-    // plt::plot_surface(x, y, z);
-    // plt::show();
+    matplot::surf(x, y, z);
+    matplot::show();
 
     // 构建图优化，先设定g2o
     typedef g2o::BlockSolver<g2o::BlockSolverTraits<2, 1>> BlockSolverType;  // 每个误差项优化变量维度为3，误差值维度为1

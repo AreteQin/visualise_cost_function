@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0)
-project(Test)
+project(visualize_cost_function)
 
 #set(CMAKE_BUILD_TYPE "Release")
 #add_definitions("-DENABLE_SSE")
