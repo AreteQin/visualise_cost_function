@@ -15,13 +15,14 @@ find_package(Sophus REQUIRED)
 find_package(CSparse REQUIRED)
 find_package(G2O REQUIRED)
 find_package(Eigen3 REQUIRED)
+find_package(Glog REQUIRED)
 
 include_directories(
         ${OpenCV_INCLUDE_DIRS}
         ${G2O_INCLUDE_DIRS}
         ${Sophus_INCLUDE_DIRS}
         ${EIGEN3_INCLUDE_DIR}
-#        "/usr/include/eigen3/"
+        #        "/usr/include/eigen3/"
         ${Pangolin_INCLUDE_DIRS}
         ${CSPARSE_INCLUDE_DIR}
 )
@@ -30,10 +31,14 @@ include_directories(
 add_subdirectory(third_party/matplotplusplus)
 
 add_executable(test test.cpp)
+target_link_libraries(test
+        ${GLOG_LIBRARIES}
+)
 #target_include_directories(test PUBLIC ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
 target_link_libraries(test
         matplot
         ${OpenCV_LIBS}
         ${Pangolin_LIBRARIES}
         g2o_core g2o_stuff g2o_types_sba g2o_solver_csparse g2o_csparse_extension
-        Sophus::Sophus)
+        Sophus::Sophus
+)

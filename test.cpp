@@ -13,6 +13,7 @@
 #include <cmath>
 #include <chrono>
 #include <matplot/matplot.h>
+#include <glog/logging.h>
 using namespace std;
 
 // 曲线模型的顶点，模板参数：优化变量维度和数据类型
@@ -85,7 +86,7 @@ public:
 int main(int argc, char** argv)
 {
     double ar = 1.0, br = 2.0; // 真实参数值
-    double ae = 2.0, be = -1.0; // 估计参数值
+    double ae = 3.0, be = 3.0; // 估计参数值
     int N = 100; // 数据点
     double w_sigma = 1.0; // 噪声Sigma值
     double inv_sigma = 1.0 / w_sigma;
@@ -108,27 +109,6 @@ int main(int argc, char** argv)
     matplot::show();
     matplot::hold(matplot::off);
 
-    // visualize cost function
-
-    auto [A, B] = matplot::meshgrid(matplot::linspace(ar - 0.1, ar + 0.1, N),
-                                    matplot::linspace(br - 0.1, br + 0.1, N));
-    auto Error_sum = matplot::zeros(N, N);
-    for (int i = 0; i < N; i++)
-    {
-        for (int j = 0; j < N; j++)
-        {
-            double error_sum = 0;
-            for (int k = 0; k < N; k++)
-            {
-                double error = y_data[k] - exp(A[i][j] * x_data[k] * x_data[k] + B[i][j] * x_data[k]);
-                error_sum += error * error * 0.5;
-            }
-            Error_sum[i][j] = error_sum;
-        }
-    }
-    auto s = matplot::surf(A, B, Error_sum);
-    matplot::show();
-
     // 构建图优化，先设定g2o
     typedef g2o::BlockSolver<g2o::BlockSolverTraits<2, 1>> BlockSolverType; // 每个误差项优化变量维度为3，误差值维度为1
     typedef g2o::LinearSolverDense<BlockSolverType::PoseMatrixType> LinearSolverType; // 线性求解器类型
@@ -138,7 +118,7 @@ int main(int argc, char** argv)
         std::make_unique<BlockSolverType>(std::make_unique<LinearSolverType>()));
     g2o::SparseOptimizer optimizer; // 图模型
     optimizer.setAlgorithm(solver); // 设置求解器
-    optimizer.setVerbose(true); // 打开调试输出
+    optimizer.setVerbose(false); // 打开调试输出
 
     // 往图中增加顶点
     CurveFittingVertex* v = new CurveFittingVertex();
@@ -158,17 +138,56 @@ int main(int argc, char** argv)
     }
 
     // 执行优化
+    vector<double> a_estimated, b_estimated, error_estimated;
+    a_estimated.push_back(ae);
+    b_estimated.push_back(be);
+    error_estimated.push_back(0);
+    for (int i = 0; i < N; i++)
+    {
+        error_estimated[0] += 0.5*pow((y_data[i]-exp(ae * x_data[i] * x_data[i] + be * x_data[i])),2);
+    }
     cout << "start optimization" << endl;
     chrono::steady_clock::time_point t1 = chrono::steady_clock::now();
     optimizer.initializeOptimization();
-    optimizer.optimize(10);
+    for (int i = 0; i < 10; i++)
+    {
+        optimizer.optimize(1);
+        // 输出优化值
+        Eigen::Vector2d ab_estimate = v->estimate();
+        LOG(INFO) << "estimated model: " << ab_estimate.transpose();
+        a_estimated.push_back(ab_estimate(0));
+        b_estimated.push_back(ab_estimate(1));
+        error_estimated.push_back(optimizer.activeChi2());
+    }
     chrono::steady_clock::time_point t2 = chrono::steady_clock::now();
     chrono::duration<double> time_used = chrono::duration_cast<chrono::duration<double>>(t2 - t1);
     cout << "solve time cost = " << time_used.count() << " seconds. " << endl;
 
-    // 输出优化值
-    Eigen::Vector2d abc_estimate = v->estimate();
-    cout << "estimated model: " << abc_estimate.transpose() << endl;
+    // visualize cost function
+    auto [A, B] = matplot::meshgrid(matplot::linspace(ar - 1, ar + 3, N),
+                                    matplot::linspace(br - 2, br + 1, N));
+    auto Error_sum = matplot::zeros(N, N);
+    for (int i = 0; i < N; i++)
+    {
+        for (int j = 0; j < N; j++)
+        {
+            double error_sum = 0;
+            for (int k = 0; k < N; k++)
+            {
+                double error = y_data[k] - exp(A[i][j] * x_data[k] * x_data[k] + B[i][j] * x_data[k]);
+                error_sum += error * error * 0.5;
+            }
+            Error_sum[i][j] = error_sum;
+        }
+    }
+    auto s = matplot::surf(A, B, Error_sum);
+    // matplot::show();
+    matplot::hold(matplot::on);
+    matplot::plot3(a_estimated, b_estimated, error_estimated, "-or");
+
+    // matplot::fplot3(
+    matplot::hold(matplot::off);
+    matplot::show();
 
     return 0;
 }
