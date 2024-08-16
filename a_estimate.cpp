@@ -17,22 +17,35 @@
 #include <glog/logging.h>
 using namespace std;
 
+double f(double x, double a)
+{
+    return a * sin(x) + x;
+}
+
+double df(double x, double a)
+{
+    return a * cos(x);
+}
+
+double J(double x, double a)
+{
+    return -sin(x);
+}
+
 // 曲线模型的顶点，模板参数：优化变量维度和数据类型
-class CurveFittingVertex : public g2o::BaseVertex<2, Eigen::Vector2d>
+class CurveFittingVertex : public g2o::BaseVertex<1, double>
 {
 public:
-    //    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
     // 重置
     virtual void setToOriginImpl() override
     {
-        _estimate << 0, 0;
+        _estimate = 0;
     }
 
     //  update estimation
     virtual void oplusImpl(const double* update) override
     {
-        _estimate += Eigen::Vector2d(update);
+        _estimate += update[0];
     }
 
     // 存盘和读盘：留空
@@ -47,7 +60,7 @@ public:
     }
 };
 
-// 误差模型 模板参数：观测值维度，类型，连接顶点类型
+// 误差模型 模板参数：观测值维度，观测值类型，连接顶点类型
 class CurveFittingEdge : public g2o::BaseUnaryEdge<1, double, CurveFittingVertex>
 {
 public:
@@ -60,18 +73,16 @@ public:
     virtual void computeError() override
     {
         const CurveFittingVertex* v = static_cast<const CurveFittingVertex*>(_vertices[0]);
-        const Eigen::Vector2d ab = v->estimate(); // get current estimated curve parameters.
-        _error(0, 0) = _measurement - std::exp(ab(0) * _x * _x + ab(1) * _x);
+        const double a = v->estimate(); // get current estimated curve parameters.
+        _error(0, 0) = _measurement - f(_x, a);
     }
 
     // 计算雅可比矩阵
     virtual void linearizeOplus() override
     {
         const CurveFittingVertex* v = static_cast<const CurveFittingVertex*>(_vertices[0]);
-        const Eigen::Vector2d ab = v->estimate();
-        double y = exp(ab[0] * _x * _x + ab[1] * _x);
-        _jacobianOplusXi[0] = -_x * _x * y; // d(error)/d(a)
-        _jacobianOplusXi[1] = -_x * y; // d(error)/d(b)
+        const double a = v->estimate();
+        _jacobianOplusXi[0] = J(_x, a); // d(error)/d(a)
     }
 
     virtual bool read(istream& in)
@@ -88,12 +99,11 @@ public:
     double _x; // x 值， y 值为 _measurement
 };
 
-void DataOptimizer(int OptimizationAlgorithm, double ae, double be, int N, double w_sigma, vector<double> x_data,
-                   vector<double> y_data,
-                   vector<double>& a_estimated, vector<double>& b_estimated, vector<double>& error_estimated)
+void DataOptimizer(int OptimizationAlgorithm, double ae, int N, double w_sigma, vector<double> x_data,
+                   vector<double> y_data, vector<double>& a_estimated, vector<double>& error_estimated)
 {
     // 构建图优化，先设定g2o
-    typedef g2o::BlockSolver<g2o::BlockSolverTraits<2, 1>> BlockSolverType; // 每个误差项优化变量维度为3，误差值维度为1
+    typedef g2o::BlockSolver<g2o::BlockSolverTraits<1, 1>> BlockSolverType; // 每个误差项优化变量维度为3，误差值维度为1
     typedef g2o::LinearSolverDense<BlockSolverType::PoseMatrixType> LinearSolverType; // 线性求解器类型
 
     // 梯度下降方法，可以从GN, LM, DogLeg 中选
@@ -122,7 +132,7 @@ void DataOptimizer(int OptimizationAlgorithm, double ae, double be, int N, doubl
 
     // 往图中增加顶点
     CurveFittingVertex* v = new CurveFittingVertex();
-    v->setEstimate(Eigen::Vector2d(ae, be));
+    v->setEstimate(ae);
     v->setId(0);
     optimizer.addVertex(v);
 
@@ -139,30 +149,29 @@ void DataOptimizer(int OptimizationAlgorithm, double ae, double be, int N, doubl
 
     // 执行优化
     a_estimated.push_back(ae);
-    b_estimated.push_back(be);
     error_estimated.push_back(0);
     for (int i = 0; i < N; i++)
     {
-        error_estimated[0] += 0.5 * pow((y_data[i] - exp(ae * x_data[i] * x_data[i] + be * x_data[i])), 2);
+        error_estimated[0] += 0.5 * pow((y_data[i] - f(x_data[i],ae)), 2);
     }
-    LOG(INFO) << "start optimization";
+    LOG(INFO) << "start optimization ===============================================";
     chrono::steady_clock::time_point t1 = chrono::steady_clock::now();
     optimizer.initializeOptimization();
     for (int i = 0; i < 10; i++)
     {
         optimizer.optimize(1);
         // 输出优化值
-        Eigen::Vector2d ab_estimate = v->estimate();
-        LOG(INFO) << "estimated model: " << ab_estimate.transpose();
-        a_estimated.push_back(ab_estimate(0));
-        b_estimated.push_back(ab_estimate(1));
+        double a_estimate = v->estimate();
+        LOG(INFO) << "estimated model: " << a_estimate;
+        a_estimated.push_back(a_estimate);
         double error = 0;
         for (int i = 0; i < N; i++)
         {
-            error += 0.5 * pow((y_data[i] - exp(ab_estimate(0) * x_data[i] * x_data[i] + ab_estimate(1) * x_data[i])),
+            error += 0.5 * pow((y_data[i] - f(x_data[i], a_estimate)),
                                2);
         }
         error_estimated.push_back(error);
+        LOG(INFO) << "error = " << error;
     }
     chrono::steady_clock::time_point t2 = chrono::steady_clock::now();
     chrono::duration<double> time_used = chrono::duration_cast<chrono::duration<double>>(t2 - t1);
@@ -171,8 +180,8 @@ void DataOptimizer(int OptimizationAlgorithm, double ae, double be, int N, doubl
 
 int main()
 {
-    double ar = 1.0, br = 2.0; // 真实参数值
-    double ae = 3.0, be = 3.0; // 估计参数值
+    double ar = 2.0; // 真实参数值
+    double ae = 3.0; // 估计参数值
     int N = 100; // 数据点
     double w_sigma = 1.0; // 噪声Sigma值
     double inv_sigma = 1.0 / w_sigma;
@@ -181,11 +190,11 @@ int main()
     std::vector<double> x_real, y_real, x_data, y_data;
     for (int i = 0; i < N; i++)
     {
-        double x = i / 100.0;
+        double x = i / 10.0;
         x_real.push_back(x);
-        y_real.push_back(exp(ar * x * x + br * x));
+        y_real.push_back(f(x_real[i], ar));
         x_data.push_back(x);
-        y_data.push_back(exp(ar * x * x + br * x) + rng.gaussian(w_sigma * w_sigma));
+        y_data.push_back(f(x_real[i], ar) + rng.gaussian(w_sigma * w_sigma));
     }
 
     // Plot given data and real plot
@@ -195,33 +204,32 @@ int main()
     matplot::show();
     matplot::hold(matplot::off);
 
-    vector<double> a_GN, b_GN, error_GN, a_LM, b_LM, error_LM, a_DogLeg, b_DogLeg, error_DogLeg;
-    DataOptimizer(0, ae, be, N, w_sigma, x_data, y_data, a_GN, b_GN, error_GN);
-    DataOptimizer(1, ae, be, N, w_sigma, x_data, y_data, a_LM, b_LM, error_LM);
-    DataOptimizer(2, ae, be, N, w_sigma, x_data, y_data, a_DogLeg, b_DogLeg, error_DogLeg);
+    vector<double> a_GN, error_GN, a_LM, error_LM, a_DogLeg, error_DogLeg, a_, error_;
+    DataOptimizer(0, ae, N, w_sigma, x_data, y_data, a_GN, error_GN);
+    DataOptimizer(1, ae, N, w_sigma, x_data, y_data, a_LM, error_LM);
+    DataOptimizer(2, ae, N, w_sigma, x_data, y_data, a_DogLeg, error_DogLeg);
+    ae = 1;
+    DataOptimizer(0, ae, N, w_sigma, x_data, y_data, a_, error_);
 
     // visualize cost function
-    auto [A, B] = matplot::meshgrid(matplot::linspace(ar - 1, ar + 3, N),
-                                    matplot::linspace(br - 2, br + 1, N));
-    auto Error_sum = matplot::zeros(N, N);
+    auto A = matplot::linspace(ar - 1, ar + 1, N);
+    vector<double> Error_sum;
     for (int i = 0; i < N; i++)
     {
-        for (int j = 0; j < N; j++)
+        double error_sum = 0;
+        for (int k = 0; k < N; k++)
         {
-            double error_sum = 0;
-            for (int k = 0; k < N; k++)
-            {
-                double error = y_data[k] - exp(A[i][j] * x_data[k] * x_data[k] + B[i][j] * x_data[k]);
-                error_sum += error * error * 0.5;
-            }
-            Error_sum[i][j] = error_sum;
+            double error = y_data[k] - f(x_data[k], A[i]);
+            error_sum += error * error * 0.5;
         }
+        Error_sum.push_back(error_sum);
     }
-    auto s = matplot::surf(A, B, Error_sum);
+    auto s = matplot::plot(A, Error_sum);
     matplot::hold(matplot::on);
-    matplot::plot3(a_GN, b_GN, error_GN, "-or");
-    matplot::plot3(a_LM, b_LM, error_LM, "-og");
-    matplot::plot3(a_DogLeg, b_DogLeg, error_DogLeg, "-ob");
+    matplot::plot(a_GN, error_GN, "-o");
+    matplot::plot(a_LM, error_LM, "-o");
+    matplot::plot(a_DogLeg, error_DogLeg, "-o");
+    matplot::plot(a_, error_, "-o");
     matplot::hold(matplot::off);
     matplot::show();
 
