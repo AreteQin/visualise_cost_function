@@ -222,8 +222,8 @@ int main()
     auto s = matplot::surf(A, B, Error_sum);
     matplot::hold(matplot::on);
     matplot::plot3(a_GN, b_GN, error_GN, "-or");
-    matplot::plot3(a_LM, b_LM, error_LM, "-og");
-    matplot::plot3(a_DogLeg, b_DogLeg, error_DogLeg, "-ob");
+    // matplot::plot3(a_LM, b_LM, error_LM, "-og");
+    // matplot::plot3(a_DogLeg, b_DogLeg, error_DogLeg, "-ob");
     matplot::plot3(a_, b_, error_, "-oy");
     matplot::hold(matplot::off);
     matplot::show();

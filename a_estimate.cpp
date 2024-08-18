@@ -181,9 +181,8 @@ void DataOptimizer(int OptimizationAlgorithm, double ae, int N, double w_sigma, 
 int main()
 {
     double ar = 10; // 真实参数值
-    double ae = 7; // 估计参数值
     int N = 100; // 数据点
-    double w_sigma = 0.1; // 噪声Sigma值
+    double w_sigma = 0.1; // 噪声Sigma 标准差 方差的根
     cv::RNG rng; // OpenCV随机数产生器
 
     std::vector<double> x_real, y_real, x_data, y_data;
@@ -204,6 +203,7 @@ int main()
     matplot::hold(matplot::off);
 
     vector<double> a_GN, error_GN, a_LM, error_LM, a_DogLeg, error_DogLeg, a_, error_;
+    double ae = 7; // 估计参数值
     DataOptimizer(0, ae, N, w_sigma, x_data, y_data, a_GN, error_GN);
     DataOptimizer(1, ae, N, w_sigma, x_data, y_data, a_LM, error_LM);
     ae = 13;
