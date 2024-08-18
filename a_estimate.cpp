@@ -19,17 +19,17 @@ using namespace std;
 
 double f(double x, double a)
 {
-    return a * sin(x) + x;
+    return sin(x + a)/a;
 }
 
 double df(double x, double a)
 {
-    return a * cos(x);
+    return cos(x + a)/a;
 }
 
 double J(double x, double a)
 {
-    return -sin(x);
+    return sin(x+a)/(a*a)-cos(x+a)/a;
 }
 
 // 曲线模型的顶点，模板参数：优化变量维度和数据类型
@@ -152,17 +152,17 @@ void DataOptimizer(int OptimizationAlgorithm, double ae, int N, double w_sigma, 
     error_estimated.push_back(0);
     for (int i = 0; i < N; i++)
     {
-        error_estimated[0] += 0.5 * pow((y_data[i] - f(x_data[i],ae)), 2);
+        error_estimated[0] += 0.5 * pow((y_data[i] - f(x_data[i], ae)), 2);
     }
     LOG(INFO) << "start optimization ===============================================";
     chrono::steady_clock::time_point t1 = chrono::steady_clock::now();
     optimizer.initializeOptimization();
-    for (int i = 0; i < 10; i++)
+    for (int i = 0; i < 5; i++)
     {
         optimizer.optimize(1);
         // 输出优化值
         double a_estimate = v->estimate();
-        LOG(INFO) << "estimated model: " << a_estimate;
+        LOG(INFO) << "estimated result: " << a_estimate;
         a_estimated.push_back(a_estimate);
         double error = 0;
         for (int i = 0; i < N; i++)
@@ -180,11 +180,10 @@ void DataOptimizer(int OptimizationAlgorithm, double ae, int N, double w_sigma, 
 
 int main()
 {
-    double ar = 2.0; // 真实参数值
-    double ae = 3.0; // 估计参数值
+    double ar = 10; // 真实参数值
+    double ae = 7; // 估计参数值
     int N = 100; // 数据点
-    double w_sigma = 1.0; // 噪声Sigma值
-    double inv_sigma = 1.0 / w_sigma;
+    double w_sigma = 0.1; // 噪声Sigma值
     cv::RNG rng; // OpenCV随机数产生器
 
     std::vector<double> x_real, y_real, x_data, y_data;
@@ -207,14 +206,15 @@ int main()
     vector<double> a_GN, error_GN, a_LM, error_LM, a_DogLeg, error_DogLeg, a_, error_;
     DataOptimizer(0, ae, N, w_sigma, x_data, y_data, a_GN, error_GN);
     DataOptimizer(1, ae, N, w_sigma, x_data, y_data, a_LM, error_LM);
+    ae = 13;
     DataOptimizer(2, ae, N, w_sigma, x_data, y_data, a_DogLeg, error_DogLeg);
-    ae = 1;
+    ae= 6;
     DataOptimizer(0, ae, N, w_sigma, x_data, y_data, a_, error_);
 
     // visualize cost function
-    auto A = matplot::linspace(ar - 1, ar + 1, N);
+    auto A = matplot::linspace(ar - 7, ar + 6, 1000);
     vector<double> Error_sum;
-    for (int i = 0; i < N; i++)
+    for (int i = 0; i < 1000; i++)
     {
         double error_sum = 0;
         for (int k = 0; k < N; k++)
@@ -226,10 +226,10 @@ int main()
     }
     auto s = matplot::plot(A, Error_sum);
     matplot::hold(matplot::on);
-    matplot::plot(a_GN, error_GN, "-o");
-    matplot::plot(a_LM, error_LM, "-o");
-    matplot::plot(a_DogLeg, error_DogLeg, "-o");
-    matplot::plot(a_, error_, "-o");
+    matplot::plot(a_GN, error_GN, "-oy");
+    matplot::plot(a_LM, error_LM, "-og");
+    matplot::plot(a_DogLeg, error_DogLeg, "-ob");
+    matplot::plot(a_, error_, "-or");
     matplot::hold(matplot::off);
     matplot::show();
 
