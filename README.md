@@ -2,5 +2,5 @@
 
 ## Requirements
 ```Bash
-sudo apt-get install gnuplot
+sudo apt install gnuplot
 ```
