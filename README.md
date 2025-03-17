@@ -2,7 +2,5 @@
 
 ## Requirements
 ```Bash
-sudo apt install gnuplot
-
 ./install_dependencies.sh
 ```
