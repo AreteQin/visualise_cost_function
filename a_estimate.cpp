@@ -1,6 +1,5 @@
 #include <iostream>
 #include <memory>
-//#include <g2o/core/g2o_core_api.h>
 #include <g2o/core/base_vertex.h>
 #include <g2o/core/base_unary_edge.h>
 #include <g2o/core/block_solver.h>
@@ -19,21 +18,21 @@ using namespace std;
 
 double f(double x, double a)
 {
-    return sin(x + a)/a;
+    return sin(x + a) / a;
 }
 
 double df(double x, double a)
 {
-    return cos(x + a)/a;
+    return cos(x + a) / a;
 }
 
 double J(double x, double a)
 {
-    return sin(x+a)/(a*a)-cos(x+a)/a;
+    return sin(x + a) / (a * a) - cos(x + a) / a;
 }
 
 // 曲线模型的顶点，模板参数：优化变量维度和数据类型
-class CurveFittingVertex : public g2o::BaseVertex<1, double>
+class CurveFittingVertex : public g2o::BaseVertex<1, double> //  1 degree of freedom of a 3D rigid-body pose
 {
 public:
     // 重置
@@ -99,11 +98,12 @@ public:
     double _x; // x 值， y 值为 _measurement
 };
 
-void DataOptimizer(int OptimizationAlgorithm, double ae, int N, double w_sigma, vector<double> x_data,
-                   vector<double> y_data, vector<double>& a_estimated, vector<double>& error_estimated)
+void DataOptimizer(int OptimizationAlgorithm, const double a_initial, const int N, const double w_sigma,
+                   const vector<double>& x_data, const vector<double>& y_data, vector<double>& a_estimated,
+                   vector<double>& error_estimated)
 {
     // 构建图优化，先设定g2o
-    typedef g2o::BlockSolver<g2o::BlockSolverTraits<1, 1>> BlockSolverType; // 每个误差项优化变量维度为3，误差值维度为1
+    typedef g2o::BlockSolver<g2o::BlockSolverTraits<1, 1>> BlockSolverType; // 每个误差项优化变量维度为1，误差值维度为1
     typedef g2o::LinearSolverDense<BlockSolverType::PoseMatrixType> LinearSolverType; // 线性求解器类型
 
     // 梯度下降方法，可以从GN, LM, DogLeg 中选
@@ -132,7 +132,7 @@ void DataOptimizer(int OptimizationAlgorithm, double ae, int N, double w_sigma, 
 
     // 往图中增加顶点
     CurveFittingVertex* v = new CurveFittingVertex();
-    v->setEstimate(ae);
+    v->setEstimate(a_initial);
     v->setId(0);
     optimizer.addVertex(v);
 
@@ -148,11 +148,11 @@ void DataOptimizer(int OptimizationAlgorithm, double ae, int N, double w_sigma, 
     }
 
     // 执行优化
-    a_estimated.push_back(ae);
+    a_estimated.push_back(a_initial);
     error_estimated.push_back(0);
     for (int i = 0; i < N; i++)
     {
-        error_estimated[0] += 0.5 * pow((y_data[i] - f(x_data[i], ae)), 2);
+        error_estimated[0] += 0.5 * pow((y_data[i] - f(x_data[i], a_initial)), 2);
     }
     LOG(INFO) << "start optimization ===============================================";
     chrono::steady_clock::time_point t1 = chrono::steady_clock::now();
@@ -203,12 +203,12 @@ int main()
     matplot::hold(matplot::off);
 
     vector<double> a_GN, error_GN, a_LM, error_LM, a_DogLeg, error_DogLeg, a_, error_;
-    double ae = 7; // 估计参数值
+    double ae = 7; // 初始值 initial value
     DataOptimizer(0, ae, N, w_sigma, x_data, y_data, a_GN, error_GN);
     DataOptimizer(1, ae, N, w_sigma, x_data, y_data, a_LM, error_LM);
     ae = 13;
     DataOptimizer(2, ae, N, w_sigma, x_data, y_data, a_DogLeg, error_DogLeg);
-    ae= 6;
+    ae = 6;
     DataOptimizer(0, ae, N, w_sigma, x_data, y_data, a_, error_);
 
     // visualize cost function

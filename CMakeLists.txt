@@ -42,3 +42,13 @@ target_link_libraries(a_estimate
         g2o_core g2o_stuff g2o_types_sba g2o_solver_csparse g2o_csparse_extension
         Sophus::Sophus
 )
+
+add_executable(sR_estimate sR_estimate.cpp)
+target_link_libraries(a_estimate
+        ${GLOG_LIBRARIES}
+        matplot
+        ${OpenCV_LIBS}
+        ${Pangolin_LIBRARIES}
+        g2o_core g2o_stuff g2o_types_sba g2o_solver_csparse g2o_csparse_extension
+        Sophus::Sophus
+)

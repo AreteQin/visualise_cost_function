@@ -86,12 +86,12 @@ public:
     double _x; // x 值， y 值为 _measurement
 };
 
-void DataOptimizer(int OptimizationAlgorithm, double ae, double be, int N, double w_sigma, vector<double> x_data,
+void DataOptimizer(int OptimizationAlgorithm, double a_initial, double b_initial, int N, double w_sigma, vector<double> x_data,
                    vector<double> y_data,
                    vector<double>& a_estimated, vector<double>& b_estimated, vector<double>& error_estimated)
 {
     // 构建图优化，先设定g2o
-    typedef g2o::BlockSolver<g2o::BlockSolverTraits<2, 1>> BlockSolverType; // 每个误差项优化变量维度为3，误差值维度为1
+    typedef g2o::BlockSolver<g2o::BlockSolverTraits<2, 1>> BlockSolverType; // 每个误差项优化变量维度为2，误差值维度为1
     typedef g2o::LinearSolverDense<BlockSolverType::PoseMatrixType> LinearSolverType; // 线性求解器类型
 
     // 梯度下降方法，可以从GN, LM, DogLeg 中选
@@ -120,7 +120,7 @@ void DataOptimizer(int OptimizationAlgorithm, double ae, double be, int N, doubl
 
     // 往图中增加顶点
     CurveFittingVertex* v = new CurveFittingVertex();
-    v->setEstimate(Eigen::Vector2d(ae, be));
+    v->setEstimate(Eigen::Vector2d(a_initial, b_initial));
     v->setId(0);
     optimizer.addVertex(v);
 
@@ -136,12 +136,12 @@ void DataOptimizer(int OptimizationAlgorithm, double ae, double be, int N, doubl
     }
 
     // 执行优化
-    a_estimated.push_back(ae);
-    b_estimated.push_back(be);
+    a_estimated.push_back(a_initial);
+    b_estimated.push_back(b_initial);
     error_estimated.push_back(0);
     for (int i = 0; i < N; i++)
     {
-        error_estimated[0] += 0.5 * pow((y_data[i] - exp(ae * x_data[i] * x_data[i] + be * x_data[i])), 2);
+        error_estimated[0] += 0.5 * pow((y_data[i] - exp(a_initial * x_data[i] * x_data[i] + b_initial * x_data[i])), 2);
     }
     LOG(INFO) << "start optimization ===============================================";
     chrono::steady_clock::time_point t1 = chrono::steady_clock::now();
