@@ -43,8 +43,18 @@ target_link_libraries(a_estimate
         Sophus::Sophus
 )
 
-add_executable(sR_estimate sR_estimate.cpp)
-target_link_libraries(a_estimate
+add_executable(visualize_frames visualize_frames.cpp)
+target_link_libraries(visualize_frames
+        ${GLOG_LIBRARIES}
+        matplot
+        ${OpenCV_LIBS}
+        ${Pangolin_LIBRARIES}
+        g2o_core g2o_stuff g2o_types_sba g2o_solver_csparse g2o_csparse_extension
+        Sophus::Sophus
+)
+
+add_executable(points_generate points_generate.cpp)
+target_link_libraries(points_generate
         ${GLOG_LIBRARIES}
         matplot
         ${OpenCV_LIBS}
