@@ -20,7 +20,7 @@ int main()
     // --- 1) Generation parameters ---
     const int N = 100;
     double scale = 0.5;
-    double angle_deg = 90.0; // MUST match generation & visualization
+    double angle_deg = 45.0; // MUST match generation & visualization
     double angle_rad = angle_deg * M_PI / 180.0;
     double cosA = cos(angle_rad);
     double sinA = sin(angle_rad);
@@ -61,6 +61,14 @@ int main()
             {0, sinA, cosA}
         }
     };
+    // print rotation matrix
+    cout << "Rotation matrix R:\n";
+    for (const auto& row : R)
+    {
+        for (double val : row)
+            cout << setw(8) << val << " ";
+        cout << "\n";
+    }
 
     // Generate
     for (int i = 0; i < N; ++i)
@@ -121,24 +129,24 @@ int main()
     plot3(xB, yB, zB, ".r")->display_name("Frame B pts");
 
     // --- before plotting axes, build vectors explicitly ---
-    std::vector<double> Ax{0.0, L_A},  Ay_x{0.0, 0.0},  Az_x{0.0, 0.0};
+    std::vector<double> Ax{0.0, L_A}, Ay_x{0.0, 0.0}, Az_x{0.0, 0.0};
     std::vector<double> Ax_b{tx, Bx_end[0]}, Ay_b{ty, Bx_end[1]}, Az_b{tz, Bx_end[2]};
 
-    std::vector<double> Ay_a{0.0, 0.0},     By_a{0.0, L_A},  Zy_a{0.0, 0.0};
+    std::vector<double> Ay_a{0.0, 0.0}, By_a{0.0, L_A}, Zy_a{0.0, 0.0};
     std::vector<double> Ay_b2{tx, By_end[0]}, By_b{ty, By_end[1]}, Zy_b{tz, By_end[2]};
 
-    std::vector<double> Az_a{0.0, 0.0},     Zy2_a{0.0, 0.0}, Za_a{0.0, L_A};
+    std::vector<double> Az_a{0.0, 0.0}, Zy2_a{0.0, 0.0}, Za_a{0.0, L_A};
     std::vector<double> Az_b2{tx, Bz_end[0]}, Zy_b2{ty, Bz_end[1]}, Za_b{tz, Bz_end[2]};
 
     // Frame A axes (length L_A)
-    plot3(Ax,   Ay_x,   Az_x,   "r-")->display_name("A X-axis");
-    plot3(Ay_a, By_a,   Zy_a,   "g-")->display_name("A Y-axis");
-    plot3(Az_a, Zy2_a,  Za_a,   "b-")->display_name("A Z-axis");
+    plot3(Ax, Ay_x, Az_x, "r-")->display_name("A X-axis");
+    plot3(Ay_a, By_a, Zy_a, "g-")->display_name("A Y-axis");
+    plot3(Az_a, Zy2_a, Za_a, "b-")->display_name("A Z-axis");
 
     // Frame B axes (length L_B), rotated+translated
-    plot3(Ax_b, Ay_b,   Az_b,   "r-")->display_name("B X-axis");
-    plot3(Ay_b2,By_b,   Zy_b,   "g-")->display_name("B Y-axis");
-    plot3(Az_b2,Zy_b2,  Za_b,   "b-")->display_name("B Z-axis");
+    plot3(Ax_b, Ay_b, Az_b, "r-")->display_name("B X-axis");
+    plot3(Ay_b2, By_b, Zy_b, "g-")->display_name("B Y-axis");
+    plot3(Az_b2, Zy_b2, Za_b, "b-")->display_name("B Z-axis");
 
     // Labels and legend
     xlabel("X");

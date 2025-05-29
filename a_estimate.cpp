@@ -59,7 +59,7 @@ public:
     }
 };
 
-// 误差模型 模板参数：观测值维度，观测值类型，连接顶点类型
+// 误差模型 模板参数：观测值维度，观测值类型，连接的顶点的类型
 class CurveFittingEdge : public g2o::BaseUnaryEdge<1, double, CurveFittingVertex>
 {
 public:
@@ -69,7 +69,7 @@ public:
     }
 
     // 计算曲线模型误差
-    virtual void computeError() override
+    void computeError() override
     {
         const CurveFittingVertex* v = static_cast<const CurveFittingVertex*>(_vertices[0]);
         const double a = v->estimate(); // get current estimated curve parameters.
@@ -77,7 +77,7 @@ public:
     }
 
     // 计算雅可比矩阵
-    virtual void linearizeOplus() override
+    void linearizeOplus() override
     {
         const CurveFittingVertex* v = static_cast<const CurveFittingVertex*>(_vertices[0]);
         const double a = v->estimate();

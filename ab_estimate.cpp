@@ -55,7 +55,7 @@ public:
     }
 
     // 计算曲线模型误差
-    virtual void computeError() override
+    void computeError() override
     {
         const CurveFittingVertex* v = static_cast<const CurveFittingVertex*>(_vertices[0]);
         const Eigen::Vector2d ab = v->estimate(); // get current estimated curve parameters.
@@ -63,7 +63,7 @@ public:
     }
 
     // 计算雅可比矩阵
-    virtual void linearizeOplus() override
+    void linearizeOplus() override
     {
         const CurveFittingVertex* v = static_cast<const CurveFittingVertex*>(_vertices[0]);
         const Eigen::Vector2d ab = v->estimate();
