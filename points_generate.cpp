@@ -1,8 +1,3 @@
-// combined.cpp
-// – Generates N noisy points along a line, writes points_frame_a.csv and points_frame_b.csv,
-//   then visualizes both clouds and their coordinate axes in 3D.
-// Requires matplot-cpp: https://github.com/alandefreitas/matplotplusplus
-
 #include <iostream>
 #include <fstream>
 #include <random>
@@ -20,11 +15,11 @@ int main()
     // --- 1) Generation parameters ---
     const int N = 100;
     double scale = 0.5;
-    double angle_deg = 45.0; // MUST match generation & visualization
+    double angle_deg = 45.0; // angle for both rotations
     double angle_rad = angle_deg * M_PI / 180.0;
-    double cosA = cos(angle_rad);
-    double sinA = sin(angle_rad);
-    double tx = 1.0, ty = 2.0, tz = 1.0; // translation for Frame B
+    double cx = cos(angle_rad), sx = sin(angle_rad); // for X rotation
+    double cy = cos(angle_rad), sy = sin(angle_rad); // for Y rotation
+    double tx = 0, ty = 0, tz = 0; // translation for Frame B
 
     // Line direction (unit)
     double dx = 1.0 / sqrt(3.0),
@@ -46,23 +41,31 @@ int main()
 
     // Containers for plotting
     vector<double> xA, yA, zA, xB, yB, zB;
-    xA.reserve(N);
-    yA.reserve(N);
-    zA.reserve(N);
-    xB.reserve(N);
-    yB.reserve(N);
-    zB.reserve(N);
+    xA.reserve(N); yA.reserve(N); zA.reserve(N);
+    xB.reserve(N); yB.reserve(N); zB.reserve(N);
 
-    // Rotation matrix about X axis by angle_deg
-    array<array<double, 3>, 3> R = {
-        {
-            {1, 0, 0},
-            {0, cosA, -sinA},
-            {0, sinA, cosA}
-        }
-    };
-    // print rotation matrix
-    cout << "Rotation matrix R:\n";
+    // --- Create the combined rotation matrix ---
+    // Rotation about X axis:
+    // R_x = [ 1,   0,    0 ]
+    //       [ 0,  cx, -sx ]
+    //       [ 0,  sx,  cx ]
+    //
+    // Rotation about Y axis:
+    // R_y = [ cy, 0, sy ]
+    //       [  0, 1,  0 ]
+    //       [ -sy,0, cy ]
+    //
+    // Combined (R = R_y * R_x):
+    // R[0][0] = cy;       R[0][1] = sy * sx;       R[0][2] = sy * cx;
+    // R[1][0] = 0;        R[1][1] = cx;            R[1][2] = -sx;
+    // R[2][0] = -sy;      R[2][1] = cy * sx;       R[2][2] = cy * cx;
+    array<array<double, 3>, 3> R = {{
+        { cy,       sy * sx,   sy * cx },
+        { 0,        cx,        -sx },
+        { -sy,      cy * sx,   cy * cx }
+    }};
+
+    cout << "Combined rotation matrix R:\n";
     for (const auto& row : R)
     {
         for (double val : row)
@@ -70,32 +73,31 @@ int main()
         cout << "\n";
     }
 
-    // Generate
+    // Generate points and transform for Frame B
     for (int i = 0; i < N; ++i)
     {
         double t = t_dist(gen);
-        // point on the ideal line
+        // ideal point on the line
         double x_line = dx * t;
         double y_line = dy * t;
         double z_line = dz * t;
-        // add noise
+        // add noise for Frame A
         double x_noisy = x_line + noise(gen);
         double y_noisy = y_line + noise(gen);
         double z_noisy = z_line + noise(gen);
-        // Frame A coords
         xA.push_back(x_noisy);
         yA.push_back(y_noisy);
         zA.push_back(z_noisy);
 
-        // scale for Frame B
+        // Scale noisy point for Frame B
         double xs = x_noisy * scale;
         double ys = y_noisy * scale;
         double zs = z_noisy * scale;
-        // rotate by R
+        // Apply combined rotation matrix (R = R_y * R_x)
         double xr = R[0][0] * xs + R[0][1] * ys + R[0][2] * zs;
         double yr = R[1][0] * xs + R[1][1] * ys + R[1][2] * zs;
         double zr = R[2][0] * xs + R[2][1] * ys + R[2][2] * zs;
-        // translate
+        // Apply translation for Frame B
         double xb = xr + tx;
         double yb = yr + ty;
         double zb = zr + tz;
@@ -103,7 +105,6 @@ int main()
         yB.push_back(yb);
         zB.push_back(zb);
 
-        // write CSV
         fileA << x_noisy << "," << y_noisy << "," << z_noisy << "\n";
         fileB << xb << "," << yb << "," << zb << "\n";
     }
@@ -113,46 +114,58 @@ int main()
     cout << "Wrote " << N << " points to points_frame_a.csv and points_frame_b.csv\n";
 
     // --- 2) Visualization ---
-    double L_A = 5.0; // axis length for Frame A
-    double L_B = L_A * scale; // axis length for Frame B
+    double L_A = 5.0;              // axis length for Frame A
+    double L_B = L_A * scale;      // axis length for Frame B
 
-    // Compute Frame B axes endpoints in Frame A coords
-    array<double, 3> Bx_end = {tx + L_B, ty, tz};
-    array<double, 3> By_end = {tx, ty + cosA * L_B, tz + sinA * L_B};
-    array<double, 3> Bz_end = {tx, ty - sinA * L_B, tz + cosA * L_B};
+    // Compute Frame B axes endpoints by rotating local axis vectors and adding translation.
+    // Local x-axis: [L_B, 0, 0]
+    // Local y-axis: [0, L_B, 0]
+    // Local z-axis: [0, 0, L_B]
+    array<double, 3> Bx_end = { tx + R[0][0] * L_B,
+                                ty + R[1][0] * L_B,
+                                tz + R[2][0] * L_B };
+    array<double, 3> By_end = { tx + R[0][1] * L_B,
+                                ty + R[1][1] * L_B,
+                                tz + R[2][1] * L_B };
+    array<double, 3> Bz_end = { tx + R[0][2] * L_B,
+                                ty + R[1][2] * L_B,
+                                tz + R[2][2] * L_B };
 
     auto fig = figure(true);
     hold(on);
 
-    // scatter points
-    plot3(xA, yA, zA, ".b")->display_name("Frame A pts");
-    plot3(xB, yB, zB, ".r")->display_name("Frame B pts");
-
-    // --- before plotting axes, build vectors explicitly ---
-    std::vector<double> Ax{0.0, L_A}, Ay_x{0.0, 0.0}, Az_x{0.0, 0.0};
-    std::vector<double> Ax_b{tx, Bx_end[0]}, Ay_b{ty, Bx_end[1]}, Az_b{tz, Bx_end[2]};
-
-    std::vector<double> Ay_a{0.0, 0.0}, By_a{0.0, L_A}, Zy_a{0.0, 0.0};
-    std::vector<double> Ay_b2{tx, By_end[0]}, By_b{ty, By_end[1]}, Zy_b{tz, By_end[2]};
-
-    std::vector<double> Az_a{0.0, 0.0}, Zy2_a{0.0, 0.0}, Za_a{0.0, L_A};
-    std::vector<double> Az_b2{tx, Bz_end[0]}, Zy_b2{ty, Bz_end[1]}, Za_b{tz, Bz_end[2]};
+    // scatter points from both frames
+    plot3(xA, yA, zA, ".b")->display_name("Frame ECEF positions");
+    plot3(xB, yB, zB, ".r")->display_name("Frame SLAM positions");
 
     // Frame A axes (length L_A)
-    plot3(Ax, Ay_x, Az_x, "r-")->display_name("A X-axis");
-    plot3(Ay_a, By_a, Zy_a, "g-")->display_name("A Y-axis");
-    plot3(Az_a, Zy2_a, Za_a, "b-")->display_name("A Z-axis");
+    vector<double> Ax{0.0, L_A}, Ay{0.0, 0.0}, Az{0.0, 0.0};
+    vector<double> Bx{0.0, 0.0}, By{0.0, L_A}, Bz{0.0, 0.0};
+    vector<double> Cx{0.0, 0.0}, Cy{0.0, 0.0}, Cz{0.0, L_A};
 
-    // Frame B axes (length L_B), rotated+translated
-    plot3(Ax_b, Ay_b, Az_b, "r-")->display_name("B X-axis");
-    plot3(Ay_b2, By_b, Zy_b, "g-")->display_name("B Y-axis");
-    plot3(Az_b2, Zy_b2, Za_b, "b-")->display_name("B Z-axis");
+    plot3(Ax, Ay, Az, "r-")->display_name("ECEF X-axis");
+    plot3(Bx, By, Bz, "g-")->display_name("ECEF Y-axis");
+    plot3(Cx, Cy, Cz, "b-")->display_name("ECEF Z-axis");
 
-    // Labels and legend
+    // Frame B axes (rotated+translated)
+    vector<double> Ax_b{tx, Bx_end[0]},
+                   Ay_b{ty, Bx_end[1]},
+                   Az_b{tz, Bx_end[2]};
+    vector<double> Bx_b{tx, By_end[0]},
+                   By_b{ty, By_end[1]},
+                   Bz_b{tz, By_end[2]};
+    vector<double> Cx_b{tx, Bz_end[0]},
+                   Cy_b{ty, Bz_end[1]},
+                   Cz_b{tz, Bz_end[2]};
+
+    plot3(Ax_b, Ay_b, Az_b, "-")->color({0.5, 0.0, 0.5}).display_name("SLAM X-axis");      // purple
+    plot3(Bx_b, By_b, Bz_b, "-")->color({0.0, 0.39, 0.0}).display_name("SLAM Y-axis");     // dark green
+    plot3(Cx_b, Cy_b, Cz_b, "-")->color({0.0, 0.0, 0.55}).display_name("SLAM Z-axis");    // dark blue
+
     xlabel("X");
     ylabel("Y");
     zlabel("Z");
-    title("Frame A vs Frame B (points + axes)");
+    title("Frame ECEF vs Frame SLAM");
     legend();
 
     // Axes limits
